@@ -1,0 +1,13 @@
+{
+  "name": "mongoose-addon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mongodb": "^6.5.0",
+    "mongoose": "^8.2.3"
+  }
+}
