@@ -28,7 +28,6 @@ class Int32 extends mongoose.SchemaType {
   }
 
   cast(val) {
-    console.log(val);
     if (val == null) {
       return val;
     }
@@ -39,7 +38,7 @@ class Int32 extends mongoose.SchemaType {
 
     const _val = Number(val);
     if (isNaN(_val)) {
-      throw new mongoose.SchemaType.CastError('Double',
+      throw new mongoose.SchemaType.CastError('Int32',
         val + ' is not a valid double');
     }
     return new Int32Type(_val);

@@ -28,7 +28,6 @@ class Double extends mongoose.SchemaType {
   }
 
   cast(val) {
-    console.log(val);
     if (val == null) {
       return val;
     }
