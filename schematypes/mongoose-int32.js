@@ -49,4 +49,6 @@ class Int32 extends mongoose.SchemaType {
 mongoose.Schema.Types.Int32 = Int32;
 mongoose.Types.Int32 = Int32Type;
 
-module.exports = Int32;
+module.exports = {
+  Int32,
+};

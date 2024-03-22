@@ -48,4 +48,6 @@ class Double extends mongoose.SchemaType {
 mongoose.Schema.Types.Double = Double;
 mongoose.Types.Double = DoubleType;
 
-module.exports = Double;
+module.exports = {
+  Double,
+};

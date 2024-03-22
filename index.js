@@ -7,7 +7,7 @@ module.exports = {
     Plugins: {
         Intl: Intl
     },
-    SchemaType: {
+    SchemaTypes: {
         Double,
         Int32,
     },
