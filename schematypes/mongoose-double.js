@@ -1,4 +1,3 @@
-'use strict';
 const MonogoDb = require('mongodb')
 const mongoose = require('mongoose');
 
@@ -28,24 +27,16 @@ class Double extends mongoose.SchemaType {
   }
 
   cast(val) {
-    if (val == null) {
-      return val;
+    const doubleVal = Number(val);
+    if (isNaN(doubleVal)) {
+      throw new Error(`Double: ${val} is not a valid integer.`);
     }
-    if (val._bsontype === 'Double') {
-      return new DoubleType(val.value);
-    }
-
-    const _val = Number(val);
-    if (isNaN(_val)) {
-      throw new mongoose.SchemaType.CastError('Double',
-        val + ' is not a valid double');
-    }
-    return new DoubleType(_val);
+    return doubleVal;  
   }
 }
 
 mongoose.Schema.Types.Double = Double;
-mongoose.Types.Double = DoubleType;
+mongoose.Types.Double = Double;
 
 module.exports = {
   Double,

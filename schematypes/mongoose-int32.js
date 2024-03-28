@@ -1,4 +1,3 @@
-'use strict';
 const MonogoDb = require('mongodb')
 const mongoose = require('mongoose');
 
@@ -28,25 +27,16 @@ class Int32 extends mongoose.SchemaType {
   }
 
   cast(val) {
-    if (val == null) {
-      return val;
+    const intVal = parseInt(val, 10);
+    if (isNaN(intVal)) {
+      throw new Error(`Int32: ${val} is not a valid integer.`);
     }
-
-    if (val._bsontype === 'Int32') {
-      return new Int32Type(val.value);
-    }
-
-    const _val = Number(val);
-    if (isNaN(_val)) {
-      throw new mongoose.SchemaType.CastError('Int32',
-        val + ' is not a valid double');
-    }
-    return new Int32Type(_val);
+    return intVal;  
   }
 }
 
 mongoose.Schema.Types.Int32 = Int32;
-mongoose.Types.Int32 = Int32Type;
+mongoose.Types.Int32 = Int32;
 
 module.exports = {
   Int32,
