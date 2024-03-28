@@ -1,9 +1,9 @@
-'use strict';
+const mongoose = require('mongoose');
+const _get = require('lodash/get');
 
-var mongoose = require('mongoose'),
-    extend   = require('util')._extend;
+const { Schema } = mongoose;
 
-module.exports = exports = function mongooseIntl(schema, options) {
+function mongooseIntl(schema, options) {
     if (!options || !options.languages || !Array.isArray(options.languages) || !options.languages.length) {
         throw new mongoose.Error('Required languages array is missing');
     }
@@ -23,9 +23,6 @@ module.exports = exports = function mongooseIntl(schema, options) {
     pluginOptions.fallback = 'fallback' in options ? options.fallback : false;
 
     schema.eachPath(function (path, schemaType) {
-        // if (path.includes('header'))
-        //     console.log(path, schemaType);
-
         if (schemaType.schema) { // propagate plugin initialization for sub-documents schemas
             schemaType.schema.plugin(mongooseIntl, pluginOptions);
             return;
@@ -39,9 +36,9 @@ module.exports = exports = function mongooseIntl(schema, options) {
             throw new mongoose.Error('Mongoose-intl plugin can be used with String type only');
         }
 
-        var pathArray = path.split('.'),
-            key       = pathArray.pop(),
-            prefix    = pathArray.join('.');
+        const pathArray = path.split('.');
+        const key = pathArray.pop();
+        let prefix = pathArray.join('.');
 
         if (prefix) prefix += '.';
 
@@ -50,51 +47,49 @@ module.exports = exports = function mongooseIntl(schema, options) {
 
         // schema.remove removes path from paths object only, but doesn't update tree
         // sounds like a bug, removing item from the tree manually
-        var tree = pathArray.reduce(function (mem, part) {
+        const tree = pathArray.reduce(function (mem, part) {
             return mem[part];
         }, schema.tree);
         delete tree[key];
 
 
         schema.virtual(path)
-            .get(function () {
-                // embedded and sub-documents will use language methods from the top level document
-                var owner = this.ownerDocument ? this.ownerDocument() : this,
-                    lang = owner.getLanguage(),
-                    langSubDoc = (this.$__getValue || this.getValue).call(this, path);
+            .get(function (_value, _virtual, doc) {
+                const lang = doc.getLanguage();
 
-                if (langSubDoc === null || langSubDoc === void 0) {
-                    return langSubDoc;
+                const val = _get(doc._doc, path + '.' + lang);
+
+                let retVal;
+                if (!val && pluginOptions.fallback) {
+                    const defaultLang = doc.getDefaultLanguage();
+                    const defaultVal = _get(doc._doc, path + '.' + defaultLang);
+                    retVal = defaultVal;
+                } else {
+                    // returning undefined takes original value.
+                    // hence returning empty string for backward compatibility.
+                    retVal = val || '';
                 }
 
-                if (langSubDoc.hasOwnProperty(lang)) {
-                    return langSubDoc[lang];
-                }
-
-                // are there any other languages defined?
-                for (lang of pluginOptions.languages) {
-                    if (langSubDoc.hasOwnProperty(lang)) {
-                        return pluginOptions.fallback ? langSubDoc[lang] : null;
-                    }
-                }
-                return void 0; // no languages defined - the entire field is undefined
+                return retVal;
             })
-            .set(function (value) {
-                console.log('Test -->', value)
-
+            .set(function (value, _virtual, doc) {
                 // multiple languages are set as an object
-                if (typeof value === 'object') {
-                    var languages = this.schema.options.mongooseIntl.languages;
+                if (value.constructor.name === 'Object') {
+                    const languages = doc.getLanguages();
                     languages.forEach(function (lang) {
                         if (!value[lang]) { return; }
-                        this.set(path + '.' + lang, value[lang]);
-                    }, this);
-                    return;
+                        // Set value to read in virtual get function
+                        doc.$locals[path + '.' + lang] = value[lang];
+                        // Set value for mongodb write
+                        doc.$set(path + '.' + lang, value[lang]);
+                    });
+                } else {
+                    const lang = doc.getLanguage();
+                    // Set value to read in virtual get function
+                    doc.$locals[path + '.' + lang] = value;
+                    // Set value for mongodb write
+                    doc.$set(path + '.' + lang, value);
                 }
-
-                // embedded and sub-documents will use language methods from the top level document
-                var owner = this.ownerDocument ? this.ownerDocument() : this;
-                this.set(path + '.' + owner.getLanguage(), value);
             });
 
 
@@ -102,31 +97,21 @@ module.exports = exports = function mongooseIntl(schema, options) {
         // and is unwanted for all child lang-properties
         delete schemaType.options.intl;
 
-        var intlObject = {};
-        intlObject[key] = {};
-        pluginOptions.languages.forEach(function (lang) {
-            var langOptions = extend({}, schemaType.options);
-            if (lang !== options.defaultLanguage) {
-                delete langOptions.default;
-                delete langOptions.required;
-            }
 
-            if (schemaType.options.hasOwnProperty('defaultAll')) {
-                langOptions.default = schemaType.options.defaultAll;
-            }
-
-            if (schemaType.options.hasOwnProperty('requiredAll')) {
-                langOptions.required = schemaType.options.requiredAll;
-            }
-            this[lang] = langOptions;
-        }, intlObject[key]);
-
-        // intlObject example:
-        // { fieldName: {
-        //     en: '',
-        //     de: ''
-        // }}
-        schema.add(intlObject, prefix);
+        // For Example: 
+        // const IntlSchema = new Schema({
+        //     locales: {
+        //         en: String,
+        //         es: String
+        //     }
+        // });
+        const IntlSchema = new Schema();
+        const IntlSchemaProp = pluginOptions.languages.reduce(function (ret, lang) {
+            ret[lang] = { type: String };
+            return ret;
+        }, {});
+        IntlSchema.add({ [key]: IntlSchemaProp }, prefix);
+        schema.add(IntlSchema);
     });
 
     // document methods to set the language for each model instance (document)
@@ -135,15 +120,28 @@ module.exports = exports = function mongooseIntl(schema, options) {
             return this.schema.options.mongooseIntl.languages;
         },
         getLanguage: function () {
-            return this.docLanguage || this.schema.options.mongooseIntl.defaultLanguage;
+            const currDoc = this;
+
+            // Recursively traverse from nested document to root document
+            const findTopDoc = (scope) => {
+                const parentDoc = scope.ownerDocument ? scope.ownerDocument() : undefined;
+                if (!parentDoc || (scope === parentDoc)) {
+                    return scope.$locals.docLanguage;
+                }
+                return findTopDoc(parentDoc);
+            };
+
+            const selectedLang = findTopDoc(currDoc) || this.schema.options.mongooseIntl.defaultLanguage;
+
+            return selectedLang;
         },
         setLanguage: function (lang) {
             if (lang && this.getLanguages().indexOf(lang) !== -1) {
-                this.docLanguage = lang;
+                this.$locals.docLanguage = lang;
             }
         },
         unsetLanguage: function () {
-            delete this.docLanguage;
+            delete this.$locals.docLanguage;
         }
     });
 
@@ -199,3 +197,5 @@ module.exports = exports = function mongooseIntl(schema, options) {
         }
     });
 };
+
+module.exports = exports = mongooseIntl;
