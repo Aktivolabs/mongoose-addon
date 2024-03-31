@@ -1,42 +1,55 @@
-const MonogoDb = require('mongodb')
-const mongoose = require('mongoose');
+const MonogoDb = require('mongodb');
+const Mongoose = require('mongoose');
 
 const { Double: DoubleType } = MonogoDb;
 
-class Double extends mongoose.SchemaType {
+class Double extends Mongoose.SchemaType {
   constructor(key, options) {
     super(key, options, 'Double');
     this.initConditionalHandlers();
   }
 
   initConditionalHandlers() {
-    const self = this;
+    const _this = this;
     Object.entries({
-      '$lt': val => self.handleDouble(val),
-      '$lte': val => self.handleDouble(val),
-      '$gt': val => self.handleDouble(val),
-      '$gte': (val) => self.handleDouble(val),
+      $lt: val => _this.handleDouble(val),
+      $lte: val => _this.handleDouble(val),
+      $gt: val => _this.handleDouble(val),
+      $gte: (val) => _this.handleDouble(val),
     }).forEach(([key, fn]) => {
-      self.$conditionalHandlers[key] = fn;
-    })
+      _this.$conditionalHandlers[key] = fn;
+    });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   handleDouble(val) {
     const doubleBsonVal = new DoubleType(val);
     return doubleBsonVal;
   }
 
   cast(val) {
-    const doubleVal = Number(val);
-    if (isNaN(doubleVal)) {
-      throw new Error(`Double: ${val} is not a valid integer.`);
+    // return if `val` is wrapped Double bson value
+    if (val._bsontype && val._bsontype === 'Double') {
+      return val;
     }
-    return doubleVal;  
+
+    const doubleVal = Number(val);
+    if (Number.isNaN(doubleVal)) {
+      const err = new Mongoose.SchemaType.CastError(
+        'Double',
+        val,
+        this.path,
+        new Error(`Double: ${val} is not a valid number.`),
+        this
+      );
+      throw err;
+    }
+    return doubleVal;
   }
 }
 
-mongoose.Schema.Types.Double = Double;
-mongoose.Types.Double = Double;
+Mongoose.Schema.Types.Double = Double;
+Mongoose.Types.Double = Double;
 
 module.exports = {
   Double,

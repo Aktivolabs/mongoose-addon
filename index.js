@@ -1,14 +1,14 @@
 const { Double } = require('./schematypes/mongoose-double');
 const { Int32 } = require('./schematypes/mongoose-int32');
-const  Intl = require('./plugins/mongoose-intl');
+const { Intl } = require('./plugins/mongoose-intl');
 
 
 module.exports = {
-    Plugins: {
-        Intl: Intl
-    },
-    SchemaTypes: {
-        Double,
-        Int32,
-    },
+  Plugins: {
+    Intl,
+  },
+  SchemaTypes: {
+    Double,
+    Int32,
+  },
 };
