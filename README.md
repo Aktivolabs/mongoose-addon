@@ -1,1 +1,1 @@
-# mongoose-addon
+# @aktivolabs/mongoose-addon
