@@ -13,7 +13,7 @@
   "dependencies": {
     "lodash": "^4.17.21",
     "mongodb": "^6.5.0",
-    "mongoose": "^8.2.4"
+    "mongoose": "^8.9.5"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
